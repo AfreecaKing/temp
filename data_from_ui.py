@@ -74,13 +74,44 @@ def check_same_name(path, name):
         return True
     else:
         return False
-    
+
+
 def del_file(path):
-    try:
-        shutil.rmtree(path)
-        messagebox.showinfo("OK","刪除成功")
-    except OSError as e:
-        messagebox.showinfo("ERROR","刪除失敗")
+    if path[-4:] == ".csv" or ".txt":
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            print(f"文件未找到。")
 
 
-
+def check_type(path, value):
+    with open(path, 'r') as file:
+        lines = file.readlines()
+    i = 0
+    flag = True
+    for line in lines:
+        result = line.split(':')
+        if result[1] == "INT":
+            try:
+                int(value[i])
+            except ValueError:
+                flag = False
+                break
+            if len(value[i]) > int(result[2]):
+                flag = False
+                break
+        elif result[1] == "DOUBLE":
+            try:
+                float(value[i])
+            except ValueError:
+                flag = False
+                break
+            if len(value[i]) > int(result[2]):
+                flag = False
+                break
+        else:
+            if len(value[i]) > int(result[2]):
+                flag = False
+                break
+        i += 1
+    return flag
