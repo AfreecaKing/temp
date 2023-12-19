@@ -3,6 +3,9 @@ import java.awt.event.*;
 import java.awt.geom.AffineTransform;
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.swing.*;
 
 public class Client2 extends JFrame {
@@ -10,7 +13,7 @@ public class Client2 extends JFrame {
     private Image cat1, cat2;
     private Image background;
     private Image bone, fishbone;
-    private Image direction;
+    private Image direction, heart;
     private long pressStartTime; // 紀錄按下的時間
     private Socket socket;
     private DataOutputStream outStream;
@@ -20,11 +23,15 @@ public class Client2 extends JFrame {
     private Timer animationTimer;
     private int player, powerHeight, cat_state = 0;
     private int up_power, wind = 0, next_wind = 0;
+    private int cat_blood = 5, dog_blood = 5;
     private GamePanel gamePanel;
     private double initialVelocity;
     private double angle;
     private double time;
     private int boneX, boneY;
+    private boolean hitCat = false, hitDog = false;
+    private List<Point> CatHeart = new ArrayList<>();
+    private List<Point> DogHeart = new ArrayList<>();
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new Client2());
@@ -45,6 +52,7 @@ public class Client2 extends JFrame {
         bone = Toolkit.getDefaultToolkit().getImage(getClass().getResource("bone.png"));
         fishbone = Toolkit.getDefaultToolkit().getImage(getClass().getResource("fishbone.png"));
         direction = Toolkit.getDefaultToolkit().getImage(getClass().getResource("direction.png"));
+        heart = Toolkit.getDefaultToolkit().getImage(getClass().getResource("heart.png"));
         // 調整圖片大小
         cat = cat.getScaledInstance(width, height, Image.SCALE_SMOOTH);
         dog = dog.getScaledInstance(width, height, Image.SCALE_SMOOTH);
@@ -55,6 +63,14 @@ public class Client2 extends JFrame {
         bone = bone.getScaledInstance(width / 2, height / 2, Image.SCALE_SMOOTH);
         fishbone = fishbone.getScaledInstance(width, height, Image.SCALE_SMOOTH);
         direction = direction.getScaledInstance(100, 50, Image.SCALE_SMOOTH);
+        heart = heart.getScaledInstance(width / 3, height / 3, Image.SCALE_SMOOTH);
+
+        for (int i = 0; i < cat_blood; i++) {
+            CatHeart.add(new Point(20 + i * 30, 50));
+        }
+        for (int i = 0; i < dog_blood; i++) {
+            DogHeart.add(new Point(630 - i * 30, 50));
+        }
         // 啟用滑鼠事件監聽
         enableEvents(AWTEvent.MOUSE_EVENT_MASK);
 
@@ -106,8 +122,8 @@ public class Client2 extends JFrame {
                         wind = inStream.readInt();
                         player = Character.getNumericValue(response.charAt(0));
                         up_power = Integer.parseInt(response.substring(2));
-                        System.out.println("Server response: " + response);
-                        System.out.println(wind);
+                        // System.out.println("Server response: " + response);
+                        // System.out.println(wind);
                         // 設定拋物線相關參數
                         if (player == 1)
                             initialVelocity = Math
@@ -115,7 +131,7 @@ public class Client2 extends JFrame {
                         else if (player == 2)
                             initialVelocity = Math
                                     .sqrt(Math.pow(up_power * 0.05, 2) + Math.pow(next_wind * 5 + up_power * 0.05, 2));
-                        System.out.print(initialVelocity);
+                        // System.out.print(initialVelocity);
                         angle = Math.toRadians(45); // 45度角
                         time = 0;
                         if (player == 1)
@@ -150,7 +166,8 @@ public class Client2 extends JFrame {
             public void mouseReleased(MouseEvent e) {
 
                 long pressDuration = System.currentTimeMillis() - pressStartTime;
-                System.out.println("Mouse pressed duration: " + pressDuration + " milliseconds");
+                // System.out.println("Mouse pressed duration: " + pressDuration + "
+                // milliseconds");
                 try {
                     // 送出識別值至伺服器
                     outStream.writeInt(2);
@@ -214,7 +231,9 @@ public class Client2 extends JFrame {
                 Rectangle catRect = new Rectangle(80, 300, cat.getWidth(null), cat.getHeight(null));
 
                 if (boneRect.intersects(catRect)) {
-                    System.out.println("Bone hit the cat!");
+                    // System.out.println("Bone hit the cat!");
+                    hitCat = true;
+                    boneY = 0;
                 }
             } else if (boneY <= 350 && boneY > 100 && player == 2) { // 魚刺飛行
                 g2d.drawImage(fishbone, boneX, boneY, this);
@@ -228,7 +247,9 @@ public class Client2 extends JFrame {
                 Rectangle dogRect = new Rectangle(510, 300, dog.getWidth(null), dog.getHeight(null));
 
                 if (fishboneRect.intersects(dogRect)) {
-                    System.out.println("fishBone hit the dog!");
+                    // System.out.println("fishBone hit the dog!");
+                    hitDog = true;
+                    boneY = 0;
                 }
             } else {
                 // 停止動畫計時器
@@ -251,6 +272,42 @@ public class Client2 extends JFrame {
 
                 // 套用變換
                 g2d.drawImage(direction, transform, null);
+            }
+            if (hitCat) {
+                cat_blood--;
+                System.out.println("cat:" + cat_blood);
+                hitCat = false;
+            }
+            if (hitDog) {
+                dog_blood--;
+                System.out.println("dog:" + dog_blood);
+                hitDog = false;
+            }
+            for (Point heartPosition : CatHeart) {
+                g.drawImage(heart, heartPosition.x, heartPosition.y, this);
+            }
+            for (Point heartPosition : DogHeart) {
+                g.drawImage(heart, heartPosition.x, heartPosition.y, this);
+            }
+            if (cat_blood == 0) {
+                System.out.println("Dog Win");
+                try {
+                    Thread.sleep(1000); // 休眠一秒
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                dispose();
+                System.exit(0);
+            } else if (dog_blood == 0) {
+                System.out.println("Cat Win");
+                try {
+                    Thread.sleep(1000); // 休眠一秒
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                dispose();
+                System.exit(0);
+
             }
         }
     }
